@@ -1,0 +1,17 @@
+{
+  "name": "bulls-and-cows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bulls and Cows game in functional TypeScript for the RS School task",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}
