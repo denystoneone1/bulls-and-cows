@@ -40,6 +40,10 @@ export default defineConfig([
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // Параметры с префиксом _ нужны в заглушках красных коммитов TDD
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
   {
     files: ['src/**/*.ts'],
