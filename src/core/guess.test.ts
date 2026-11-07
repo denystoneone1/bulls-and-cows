@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidGuess } from './guess.js';
+import { evaluateGuess, isValidGuess } from './guess.js';
 
 describe('isValidGuess', () => {
   it.each([
@@ -37,5 +37,32 @@ describe('isValidGuess', () => {
     { guess: 'aA12', base: 16 },
   ] as const)('rejects $guess with repeated digits', ({ guess, base }) => {
     expect(isValidGuess(guess, guess.length, base)).toBe(false);
+  });
+});
+
+describe('evaluateGuess', () => {
+  it.each([
+    { secret: '1234', guess: '1234', bulls: 4, cows: 0 },
+    { secret: '1234', guess: '5678', bulls: 0, cows: 0 },
+    { secret: '1234', guess: '4321', bulls: 0, cows: 4 },
+    { secret: '1234', guess: '1243', bulls: 2, cows: 2 },
+    { secret: '1234', guess: '1325', bulls: 1, cows: 2 },
+    { secret: '0123', guess: '0321', bulls: 2, cows: 2 },
+    { secret: '01', guess: '10', bulls: 0, cows: 2 },
+    { secret: '765', guess: '576', bulls: 0, cows: 3 },
+  ])('returns $bulls bulls and $cows cows for $guess against $secret', (example) => {
+    expect(evaluateGuess(example.secret, example.guess)).toEqual({
+      bulls: example.bulls,
+      cows: example.cows,
+    });
+  });
+
+  it('compares hex digits case-insensitively', () => {
+    expect(evaluateGuess('a1b2', 'A1B2')).toEqual({ bulls: 4, cows: 0 });
+    expect(evaluateGuess('ABCD', 'dcba')).toEqual({ bulls: 0, cows: 4 });
+  });
+
+  it('returns the same result for the same input', () => {
+    expect(evaluateGuess('5079', '9075')).toEqual(evaluateGuess('5079', '9075'));
   });
 });
