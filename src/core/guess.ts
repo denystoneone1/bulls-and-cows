@@ -17,6 +17,12 @@ export interface GuessResult {
   readonly cows: number;
 }
 
-export const evaluateGuess = (_secret: string, _guess: string): GuessResult => {
-  throw new Error('Not implemented');
+export const evaluateGuess = (secret: string, guess: string): GuessResult => {
+  const secretDigits = toDigits(secret);
+  const guessDigits = toDigits(guess);
+
+  const bulls = guessDigits.filter((digit, index) => digit === secretDigits[index]).length;
+  const matches = guessDigits.filter((digit) => secretDigits.includes(digit)).length;
+
+  return { bulls, cows: matches - bulls };
 };
