@@ -10,18 +10,26 @@ export interface GameSettings {
   readonly base: Base;
 }
 
-export const BASE_OPTIONS: readonly BaseOption[] = [];
+export const BASE_OPTIONS: readonly BaseOption[] = [
+  { name: 'bin', base: 2 },
+  { name: 'oct', base: 8 },
+  { name: 'dec', base: 10 },
+  { name: 'hex', base: 16 },
+];
 
-export const LENGTH_OPTIONS: readonly number[] = [];
+const MIN_LENGTH = 2;
+const MAX_LENGTH = 6;
 
-export const isLengthAvailable = (_length: number, _base: Base): boolean => {
-  throw new Error('Not implemented');
-};
+export const LENGTH_OPTIONS: readonly number[] = Array.from(
+  { length: MAX_LENGTH - MIN_LENGTH + 1 },
+  (_, index) => MIN_LENGTH + index,
+);
 
-export const getAvailableLengths = (_base: Base): readonly number[] => {
-  throw new Error('Not implemented');
-};
+// Уникальных цифр в секрете не может быть больше, чем цифр в алфавите системы
+export const isLengthAvailable = (length: number, base: Base): boolean => length <= base;
 
-export const fitLengthToBase = (_length: number, _base: Base): number => {
-  throw new Error('Not implemented');
-};
+export const getAvailableLengths = (base: Base): readonly number[] =>
+  LENGTH_OPTIONS.filter((length) => isLengthAvailable(length, base));
+
+export const fitLengthToBase = (length: number, base: Base): number =>
+  isLengthAvailable(length, base) ? length : Math.max(...getAvailableLengths(base));
