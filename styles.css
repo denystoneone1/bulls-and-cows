@@ -1,0 +1,541 @@
+/* Тетрадный лист: все размеры кратны клетке */
+:root {
+  --cell: 28px;
+  --paper: #f6f9fb;
+  --grid: #d6e4ee;
+  --margin-line: #e8857c;
+  --ink: #20409a;
+  --ink-soft: #20409a1f;
+  --text: #1d2733;
+  --pencil: #66717e;
+  --red-pen: #cc2f2a;
+  --font-text: 'Golos Text', 'Segoe UI', system-ui, sans-serif;
+  --font-digits: 'PT Mono', 'Courier New', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #131a24;
+    --grid: #1f2b3b;
+    --margin-line: #8a3a36;
+    --ink: #9db4ff;
+    --ink-soft: #9db4ff26;
+    --text: #dfe6ee;
+    --pencil: #8c97a5;
+    --red-pen: #ff7468;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  color: var(--text);
+  font: 400 1rem / var(--cell) var(--font-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  position: relative;
+  width: min(100%, calc(var(--cell) * 24));
+  min-height: 100vh;
+  /* Отступ слева округляется до целой клетки, чтобы текст ложился на сетку */
+  margin-left: max(0px, round(down, calc((100% - var(--cell) * 24) / 2), var(--cell)));
+  padding: calc(var(--cell) * 2) var(--cell) calc(var(--cell) * 4) calc(var(--cell) * 3);
+}
+
+/* Красная линия полей */
+.page::before {
+  position: absolute;
+  inset: 0 auto 0 calc(var(--cell) * 2 - 1px);
+  width: 2px;
+  background: var(--margin-line);
+  content: '';
+}
+
+h1,
+h2,
+p,
+ol,
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+}
+
+.title {
+  color: var(--ink);
+  font-size: 2.125rem;
+  font-weight: 600;
+  line-height: calc(var(--cell) * 2);
+  letter-spacing: -0.01em;
+}
+
+.rules {
+  max-width: 34em;
+  margin-bottom: calc(var(--cell) * 2);
+  color: var(--pencil);
+}
+
+/* Настройки */
+.settings {
+  display: grid;
+  gap: var(--cell);
+  margin-bottom: calc(var(--cell) * 2);
+}
+
+.setting {
+  min-width: 0;
+  border: 0;
+}
+
+.setting-name {
+  margin-bottom: calc(var(--cell) / 2);
+  font-weight: 500;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--cell) / 2);
+}
+
+.choice {
+  position: relative;
+  cursor: pointer;
+}
+
+.choice-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.choice-mark {
+  position: relative;
+  display: inline-block;
+  min-width: calc(var(--cell) * 2);
+  padding: 0 calc(var(--cell) / 2);
+  font-family: var(--font-digits);
+  font-size: 1.25rem;
+  line-height: calc(var(--cell) * 1.5);
+  text-align: center;
+}
+
+.choice-mark sub {
+  color: var(--pencil);
+  font-family: var(--font-text);
+  font-size: 0.6875rem;
+}
+
+/* Выбранный вариант обведен чернилами от руки */
+.choice-mark::after {
+  position: absolute;
+  inset: 1px -2px;
+  border: 2px solid transparent;
+  border-radius: 48% 52% 46% 54% / 55% 45% 55% 45%;
+  transform: rotate(-3deg);
+  content: '';
+}
+
+.choice-input:checked + .choice-mark {
+  color: var(--ink);
+}
+
+.choice-input:checked + .choice-mark::after {
+  border-color: var(--ink);
+}
+
+.choice-input:focus-visible + .choice-mark {
+  outline: 2px dashed var(--ink);
+  outline-offset: 2px;
+}
+
+.choice:hover .choice-input:not(:checked, :disabled) + .choice-mark {
+  background: var(--ink-soft);
+}
+
+/* Недоступное зачеркнуто, как в черновике */
+.choice-input:disabled + .choice-mark {
+  color: var(--pencil);
+  text-decoration: line-through 2px var(--pencil);
+  cursor: not-allowed;
+}
+
+.setting:disabled .choice {
+  cursor: default;
+}
+
+.setting:disabled .choice-input:checked + .choice-mark {
+  text-decoration: none;
+}
+
+.setting:disabled .choice-input:not(:checked) + .choice-mark {
+  color: var(--pencil);
+  text-decoration: none;
+  opacity: 0.55;
+}
+
+.variants {
+  color: var(--pencil);
+}
+
+.variants-count {
+  color: var(--text);
+  font-family: var(--font-digits);
+}
+
+/* Кнопки */
+.button {
+  justify-self: start;
+  height: calc(var(--cell) * 1.5);
+  padding: 0 var(--cell);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  font: 500 1rem / 1 var(--font-text);
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button-primary:hover {
+  background: color-mix(in srgb, var(--ink) 85%, var(--text));
+}
+
+.button-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--pencil);
+  text-decoration: underline 1px;
+  text-underline-offset: 4px;
+  padding: 0;
+}
+
+.button-quiet:hover {
+  color: var(--ink);
+}
+
+.button:focus-visible,
+.note:focus-visible {
+  outline: 2px dashed var(--ink);
+  outline-offset: 3px;
+}
+
+/* Игра */
+.board {
+  display: grid;
+  gap: var(--cell);
+  justify-items: start;
+  margin-bottom: calc(var(--cell) * 2);
+}
+
+.board-meta {
+  display: flex;
+  gap: var(--cell);
+  color: var(--pencil);
+}
+
+.timer {
+  font-family: var(--font-digits);
+  font-variant-numeric: tabular-nums;
+}
+
+.guess {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cell);
+}
+
+.guess-field {
+  position: relative;
+  display: block;
+}
+
+/* Настоящее поле лежит поверх клеток и невидимо: ввод, вставка и фокус работают как обычно */
+.guess-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 1rem;
+  opacity: 0;
+}
+
+.guess-cells {
+  display: flex;
+}
+
+.guess-cells .cell {
+  display: grid;
+  place-items: center;
+  width: calc(var(--cell) * 2);
+  height: calc(var(--cell) * 2);
+  margin-right: -2px;
+  border: 2px solid var(--pencil);
+  color: var(--ink);
+  font-family: var(--font-digits);
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.guess-field:focus-within .cell {
+  border-color: var(--ink);
+}
+
+.guess-field:focus-within .cell-current {
+  background: var(--ink-soft);
+}
+
+.guess-field:focus-within .cell-current::after {
+  width: 2px;
+  height: 1.1em;
+  background: var(--ink);
+  content: '';
+  animation: caret 1s steps(1) infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.message {
+  min-height: var(--cell);
+  margin-top: calc(var(--cell) * -1);
+  color: var(--red-pen);
+}
+
+.message-empty {
+  visibility: hidden;
+}
+
+.notes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--cell);
+  margin-top: calc(var(--cell) * -1);
+}
+
+.notes-name {
+  color: var(--pencil);
+}
+
+.notes-digits {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.note {
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 1.125rem / 1 var(--font-digits);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.note:hover {
+  background: var(--ink-soft);
+}
+
+.note[aria-pressed='true'] {
+  color: var(--pencil);
+  text-decoration: line-through 2px var(--red-pen);
+}
+
+.verdict {
+  color: var(--ink);
+  font-size: 1.375rem;
+  font-weight: 500;
+  line-height: calc(var(--cell) * 1.5);
+}
+
+/* История ходов: одна цифра в одной клетке */
+.history {
+  display: grid;
+  list-style: none;
+}
+
+.attempt {
+  display: flex;
+  align-items: center;
+  height: var(--cell);
+}
+
+.attempt-number {
+  width: calc(var(--cell) * 1.5);
+  margin-left: calc(var(--cell) * -1.5);
+  padding-right: 6px;
+  color: var(--pencil);
+  font-size: 0.875rem;
+  text-align: right;
+}
+
+.attempt-digits {
+  position: relative;
+  display: flex;
+  margin-right: var(--cell);
+}
+
+.attempt-digits .cell {
+  width: var(--cell);
+  color: var(--ink);
+  font-family: var(--font-digits);
+  font-size: 1.25rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.attempt-score {
+  font-family: var(--font-digits);
+  font-size: 1.0625rem;
+  white-space: pre;
+}
+
+/* Победа: число обводится красной ручкой */
+.ink-circle {
+  position: absolute;
+  inset: -8px -12px -8px -4px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  overflow: visible;
+  fill: none;
+  stroke: var(--red-pen);
+  stroke-linecap: round;
+  stroke-width: 2.2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.ink-circle path {
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 0.7s 0.15s ease-out forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.attempt-won .attempt-score {
+  color: var(--red-pen);
+}
+
+.history-empty {
+  color: var(--pencil);
+}
+
+/* Рекорды */
+.records-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: calc(var(--cell) * 2);
+}
+
+.records-empty {
+  max-width: 30em;
+  color: var(--pencil);
+}
+
+.records-table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.records-table th,
+.records-table td {
+  height: var(--cell);
+  padding: 0 var(--cell) 0 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.records-table th {
+  color: var(--pencil);
+  font-weight: 400;
+}
+
+.records-table td:nth-child(-n + 3) {
+  font-family: var(--font-digits);
+}
+
+.record-new td {
+  color: var(--red-pen);
+}
+
+@media (max-width: 480px) {
+  :root {
+    --cell: 24px;
+  }
+
+  .page {
+    padding: calc(var(--cell) * 2) 16px calc(var(--cell) * 3) calc(var(--cell) * 2);
+  }
+
+  .page::before {
+    left: calc(var(--cell) * 1.5 - 1px);
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  /* На узком экране поля тесные: номер хода переезжает в строку */
+  .attempt-number {
+    width: var(--cell);
+    margin-left: 0;
+    margin-right: 6px;
+  }
+
+  .choices {
+    gap: 4px;
+  }
+
+  .records-table th,
+  .records-table td {
+    padding-right: 14px;
+    white-space: nowrap;
+  }
+
+  .choice-mark {
+    min-width: calc(var(--cell) * 1.75);
+    padding: 0 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-circle path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .guess-field:focus-within .cell-current::after {
+    animation: none;
+  }
+}
