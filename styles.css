@@ -1,29 +1,59 @@
-/* Тетрадный лист: все размеры кратны клетке */
+/*
+  Концепция "бирка": каждое число живет на желтой ушной бирке для скота,
+  а ответ пробивается компостером. Желтый только для цифр, черный для действий,
+  синий только для фокуса, красный только для ошибок.
+*/
 :root {
-  --cell: 28px;
-  --paper: #f6f9fb;
-  --grid: #d6e4ee;
-  --margin-line: #e8857c;
-  --ink: #20409a;
-  --ink-soft: #20409a1f;
-  --text: #1d2733;
-  --pencil: #66717e;
-  --red-pen: #cc2f2a;
+  --bg: #e9ece4;
+  --panel: #f5f6f1;
+  --ink: #1a1c18;
+  --ink-2: #50564c;
+  --soft: #c5cabd;
+  --tag: #f4c400;
+  --tag-ink: #1a1c18;
+  --rim: #b89300;
+  --blue: #1f4fc4;
+  --red: #b42318;
+  --dis: #80867a;
+  --miss: #9aa094;
+  --on-ink: #f5f6f1;
   --font-text: 'Golos Text', 'Segoe UI', system-ui, sans-serif;
-  --font-digits: 'PT Mono', 'Courier New', monospace;
+  --font-digits: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #131a24;
-    --grid: #1f2b3b;
-    --margin-line: #8a3a36;
-    --ink: #9db4ff;
-    --ink-soft: #9db4ff26;
-    --text: #dfe6ee;
-    --pencil: #8c97a5;
-    --red-pen: #ff7468;
+  :root:not([data-theme='light']) {
+    --bg: #1d201b;
+    --panel: #252922;
+    --ink: #eceee6;
+    --ink-2: #a7ad9f;
+    --soft: #3c4137;
+    --tag: #efc000;
+    --rim: #a88600;
+    --blue: #93b0ff;
+    --red: #ff8a7a;
+    --dis: #787e71;
+    --miss: #6c7266;
+    --on-ink: #1d201b;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #1d201b;
+  --panel: #252922;
+  --ink: #eceee6;
+  --ink-2: #a7ad9f;
+  --soft: #3c4137;
+  --tag: #efc000;
+  --rim: #a88600;
+  --blue: #93b0ff;
+  --red: #ff8a7a;
+  --dis: #787e71;
+  --miss: #6c7266;
+  --on-ink: #1d201b;
+  color-scheme: dark;
 }
 
 *,
@@ -33,509 +63,1583 @@
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
-  background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: var(--cell) var(--cell);
-  color: var(--text);
-  font: 400 1rem / var(--cell) var(--font-text);
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px / 1.5 var(--font-text);
   -webkit-font-smoothing: antialiased;
-}
-
-.page {
-  position: relative;
-  width: min(100%, calc(var(--cell) * 24));
-  min-height: 100vh;
-  /* Отступ слева округляется до целой клетки, чтобы текст ложился на сетку */
-  margin-left: max(0px, round(down, calc((100% - var(--cell) * 24) / 2), var(--cell)));
-  padding: calc(var(--cell) * 2) var(--cell) calc(var(--cell) * 4) calc(var(--cell) * 3);
-}
-
-/* Красная линия полей */
-.page::before {
-  position: absolute;
-  inset: 0 auto 0 calc(var(--cell) * 2 - 1px);
-  width: 2px;
-  background: var(--margin-line);
-  content: '';
 }
 
 h1,
 h2,
+h3,
 p,
-ol,
+ul,
 fieldset,
 legend {
   margin: 0;
   padding: 0;
 }
 
-.title {
-  color: var(--ink);
-  font-size: 2.125rem;
-  font-weight: 600;
-  line-height: calc(var(--cell) * 2);
-  letter-spacing: -0.01em;
+button,
+input {
+  font: inherit;
 }
 
-.rules {
-  max-width: 34em;
-  margin-bottom: calc(var(--cell) * 2);
-  color: var(--pencil);
-}
-
-/* Настройки */
-.settings {
-  display: grid;
-  gap: var(--cell);
-  margin-bottom: calc(var(--cell) * 2);
-}
-
-.setting {
-  min-width: 0;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
   border: 0;
 }
 
-.setting-name {
-  margin-bottom: calc(var(--cell) / 2);
-  font-weight: 500;
+:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
 }
 
-.choices {
+/* Раскладка: слева настройки и рекорды, справа игровое поле */
+.app {
   display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--cell) / 2);
+  flex-direction: column;
+  gap: 28px;
+  max-width: 1280px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 24px 40px 40px;
 }
 
-.choice {
-  position: relative;
+.layout {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'settings main'
+    'records main';
+  gap: 36px 48px;
+  align-items: start;
+}
+
+.area-settings {
+  grid-area: settings;
+  min-width: 0;
+}
+
+.area-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.area-records {
+  grid-area: records;
+  min-width: 0;
+}
+
+/* Шапка */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 3px solid var(--ink);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rules-toggle {
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 4px;
   cursor: pointer;
 }
 
-.choice-input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: inherit;
+.rules-toggle-icon {
+  display: none;
 }
 
-.choice-mark {
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.rules-toggle:hover {
+  background: var(--panel);
+}
+
+/* Бирка: размеры задает вариант, форма общая */
+.tag {
+  --w: 64px;
+  --h: 84px;
+  --r-top: 8px;
+  --r-bottom: 22px;
+  --hole: 12px;
+  --hole-top: 7px;
+  --size: 36px;
+  --pad: 14px;
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  width: var(--w);
+  height: var(--h);
+  padding-bottom: var(--pad);
+  border-radius: var(--r-top) var(--r-top) var(--r-bottom) var(--r-bottom);
+  background: var(--tag);
+  color: var(--tag-ink);
+  font-family: var(--font-digits);
+  font-size: var(--size);
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.tag-hole {
+  position: absolute;
+  top: var(--hole-top);
+  left: 50%;
+  width: var(--hole);
+  height: var(--hole);
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--rim);
+  transform: translateX(-50%);
+}
+
+.tag-logo {
+  --w: 36px;
+  --h: 46px;
+  --r-top: 5px;
+  --r-bottom: 14px;
+  --hole: 8px;
+  --hole-top: 5px;
+  --size: 13px;
+  --pad: 6px;
+}
+
+.tag-logo .tag-hole {
+  box-shadow: inset 0 0 0 1.5px var(--rim);
+}
+
+.tag-example {
+  --w: 56px;
+  --h: 72px;
+  --r-top: 6px;
+  --r-bottom: 16px;
+  --hole: 8px;
+  --hole-top: 6px;
+  --size: 30px;
+  --pad: 10px;
+}
+
+.tag-example .tag-hole {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1.5px var(--rim);
+}
+
+.tag-hidden {
+  --w: 26px;
+  --h: 34px;
+  --r-top: 4px;
+  --r-bottom: 10px;
+  --hole: 6px;
+  --hole-top: 4px;
+  --size: 15px;
+  --pad: 3px;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.tag-hidden .tag-hole {
+  box-shadow: none;
+}
+
+.tag-ghost {
+  --w: 40px;
+  --h: 52px;
+  --r-top: 5px;
+  --r-bottom: 14px;
+  --hole: 8px;
+  --hole-top: 5px;
+  border: 2px dashed var(--ink-2);
+  background: transparent;
+}
+
+.tag-ghost .tag-hole {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink-2);
+}
+
+.tag-inline {
+  display: inline-block;
+  padding: 3px 6px 3px 10px;
+  border-radius: 4px 4px 12px 12px;
+  background: var(--tag);
+  color: var(--tag-ink);
+  font-family: var(--font-digits);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Пробивки: форма, а не цвет */
+.marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mark {
+  --mark: 14px;
   position: relative;
   display: inline-block;
-  min-width: calc(var(--cell) * 2);
-  padding: 0 calc(var(--cell) / 2);
-  font-family: var(--font-digits);
-  font-size: 1.25rem;
-  line-height: calc(var(--cell) * 1.5);
-  text-align: center;
+  flex: none;
+  width: var(--mark);
+  height: var(--mark);
+  border-radius: 50%;
 }
 
-.choice-mark sub {
-  color: var(--pencil);
-  font-family: var(--font-text);
-  font-size: 0.6875rem;
+.mark-bull {
+  background: var(--ink);
 }
 
-/* Выбранный вариант обведен чернилами от руки */
-.choice-mark::after {
+.mark-cow {
+  box-shadow: inset 0 0 0 2.5px var(--ink);
+}
+
+.mark-miss::after {
   position: absolute;
-  inset: 1px -2px;
-  border: 2px solid transparent;
-  border-radius: 48% 52% 46% 54% / 55% 45% 55% 45%;
-  transform: rotate(-3deg);
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--miss);
+  transform: translate(-50%, -50%);
   content: '';
 }
 
-.choice-input:checked + .choice-mark {
-  color: var(--ink);
+.mark-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: var(--ink-2);
+  font-size: 14px;
 }
 
-.choice-input:checked + .choice-mark::after {
-  border-color: var(--ink);
+.mark-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.choice-input:focus-visible + .choice-mark {
-  outline: 2px dashed var(--ink);
-  outline-offset: 2px;
+.mark-legend .mark {
+  --mark: 11px;
 }
 
-.choice:hover .choice-input:not(:checked, :disabled) + .choice-mark {
-  background: var(--ink-soft);
+.mark-legend .mark-cow {
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
-/* Недоступное зачеркнуто, как в черновике */
-.choice-input:disabled + .choice-mark {
-  color: var(--pencil);
-  text-decoration: line-through 2px var(--pencil);
-  cursor: not-allowed;
+/* Заголовки блоков */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.setting:disabled .choice {
-  cursor: default;
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
 }
 
-.setting:disabled .choice-input:checked + .choice-mark {
-  text-decoration: none;
-}
-
-.setting:disabled .choice-input:not(:checked) + .choice-mark {
-  color: var(--pencil);
-  text-decoration: none;
-  opacity: 0.55;
-}
-
-.variants {
-  color: var(--pencil);
-}
-
-.variants-count {
-  color: var(--text);
+.section-meta {
+  color: var(--ink-2);
   font-family: var(--font-digits);
+  font-size: 14px;
+}
+
+.screen-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.block-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.block-count {
+  color: var(--ink-2);
+  font-family: var(--font-digits);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.block-meta,
+.lock-note,
+.setting-note {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.lock-note,
+.setting-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--ink-2);
+  font-size: 15px;
 }
 
 /* Кнопки */
 .button {
-  justify-self: start;
-  height: calc(var(--cell) * 1.5);
-  padding: 0 var(--cell);
+  height: 56px;
+  padding: 0 28px;
   border: 2px solid var(--ink);
-  border-radius: 3px;
-  font: 500 1rem / 1 var(--font-text);
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .button-primary {
   background: var(--ink);
-  color: var(--paper);
+  color: var(--on-ink);
 }
 
 .button-primary:hover {
-  background: color-mix(in srgb, var(--ink) 85%, var(--text));
+  background: color-mix(in srgb, var(--ink) 82%, var(--bg));
 }
 
-.button-quiet {
-  border-color: transparent;
+.button-outline {
+  height: 44px;
+  padding: 0 18px;
   background: transparent;
-  color: var(--pencil);
-  text-decoration: underline 1px;
-  text-underline-offset: 4px;
-  padding: 0;
-}
-
-.button-quiet:hover {
   color: var(--ink);
+  font-size: 16px;
 }
 
-.button:focus-visible,
-.note:focus-visible {
-  outline: 2px dashed var(--ink);
-  outline-offset: 3px;
+.button-outline:hover {
+  background: var(--panel);
 }
 
-/* Игра */
-.board {
+.button:active {
+  transform: translateY(1px);
+}
+
+.button-wide {
+  width: 100%;
+}
+
+/* Настройки */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-compact {
+  display: none;
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+}
+
+.setting-name {
+  margin-bottom: 8px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.segments {
   display: grid;
-  gap: var(--cell);
-  justify-items: start;
-  margin-bottom: calc(var(--cell) * 2);
+  gap: 6px;
 }
 
-.board-meta {
-  display: flex;
-  gap: var(--cell);
-  color: var(--pencil);
+.segments-base {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.timer {
-  font-family: var(--font-digits);
-  font-variant-numeric: tabular-nums;
+.segments-length {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-.guess {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--cell);
-}
-
-.guess-field {
+.segment {
   position: relative;
   display: block;
 }
 
-/* Настоящее поле лежит поверх клеток и невидимо: ввод, вставка и фокус работают как обычно */
-.guess-input {
+.segment-input {
   position: absolute;
   inset: 0;
   width: 100%;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  caret-color: transparent;
-  font-size: 1rem;
+  height: 100%;
+  margin: 0;
   opacity: 0;
+  cursor: pointer;
+}
+
+.segment-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 52px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-digits);
+}
+
+.segments-base .segment-face {
+  height: 60px;
+}
+
+.segment-label {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.segments-base .segment-label {
+  font-size: 18px;
+}
+
+.segment-range {
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.segment:hover .segment-input:enabled:not(:checked) + .segment-face {
+  background: var(--soft);
+}
+
+.segment-input:checked + .segment-face {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.segment-input:checked + .segment-face .segment-range {
+  color: var(--on-ink);
+}
+
+.segment-input:focus-visible + .segment-face {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* Недоступная длина: пунктир вместо сплошной рамки */
+.segment-input:disabled {
+  cursor: not-allowed;
+}
+
+.segment-input:disabled + .segment-face {
+  border: 1.5px dashed var(--dis);
+  background: transparent;
+  color: var(--dis);
+}
+
+/* Заблокированные настройки: выбор виден, остальное приглушено */
+.settings.is-locked .segment-input:checked + .segment-face {
+  border: 1.5px solid var(--ink-2);
+  background: var(--ink-2);
+  color: var(--on-ink);
+}
+
+.settings.is-locked .segment-input:not(:checked) + .segment-face {
+  border: 1.5px dashed var(--soft);
+  background: transparent;
+  color: var(--dis);
+}
+
+.settings.is-locked .segment-input:not(:checked) + .segment-face .segment-range {
+  color: var(--dis);
+}
+
+.variants {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--soft);
+}
+
+.variants-label {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.variants-count {
+  font-family: var(--font-digits);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Рекорды */
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.records-table {
+  width: 100%;
+  border-top: 2px solid var(--ink);
+  border-collapse: collapse;
+}
+
+.records-table th,
+.records-table td {
+  padding: 0 10px;
+  border-bottom: 1px solid var(--soft);
+  text-align: left;
+}
+
+.records-table th {
+  height: 36px;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.records-table td {
+  height: 46px;
+}
+
+.records-table th:nth-child(1) {
+  width: 64px;
+}
+
+.records-table th:nth-child(2) {
+  width: 72px;
+}
+
+.records-table th:nth-child(3) {
+  width: 80px;
+}
+
+.num {
+  font-family: var(--font-digits);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.num-light {
+  font-weight: 500;
+}
+
+.records-when {
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.record-new td {
+  background: var(--tag);
+  color: var(--tag-ink);
+}
+
+.record-new .records-when {
+  color: var(--tag-ink);
+  font-weight: 700;
+}
+
+/* Пустые состояния */
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 16px;
+  border: 2px dashed var(--ink-2);
+  border-radius: 4px;
+}
+
+.empty-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empty-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.empty-text {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* Как играть */
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.app.is-locked .rules {
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.rules-lead {
+  max-width: 620px;
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.example-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.example-label {
+  width: 110px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+
+.tag-row {
+  display: flex;
+  gap: 6px;
+}
+
+.example-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score {
+  font-family: var(--font-digits);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 16px;
+  line-height: 24px;
+  list-style: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.legend-item .mark {
+  top: 2px;
+}
+
+.rules-note {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* Игровое поле */
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.readout-label {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.readout-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-digits);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-divider {
+  align-self: stretch;
+  width: 2px;
+  background: var(--soft);
+}
+
+.status-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.hidden-secret {
+  display: flex;
+  gap: 4px;
+}
+
+.new-game-mobile {
+  display: none;
+}
+
+/* Ввод: настоящее поле лежит поверх бирок и невидимо */
+.guess {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guess-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.guess-field {
+  position: relative;
+}
+
+.guess-input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 16px;
+  opacity: 0;
+  cursor: text;
 }
 
 .guess-cells {
   display: flex;
+  gap: 10px;
 }
 
-.guess-cells .cell {
-  display: grid;
-  place-items: center;
-  width: calc(var(--cell) * 2);
-  height: calc(var(--cell) * 2);
-  margin-right: -2px;
-  border: 2px solid var(--pencil);
-  color: var(--ink);
-  font-family: var(--font-digits);
-  font-size: 2rem;
-  text-transform: uppercase;
+.tag-cell {
+  border: 2px solid var(--ink);
+  background: var(--panel);
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
 }
 
-.guess-field:focus-within .cell {
-  border-color: var(--ink);
+.tag-cell .tag-hole {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink);
 }
 
-.guess-field:focus-within .cell-current {
-  background: var(--ink-soft);
+.tag-cell.is-filled {
+  border-color: var(--tag);
+  background: var(--tag);
 }
 
-.guess-field:focus-within .cell-current::after {
-  width: 2px;
-  height: 1.1em;
+.tag-cell.is-filled .tag-hole {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--rim);
+}
+
+.caret {
+  position: absolute;
+  bottom: var(--pad);
+  left: 50%;
+  display: none;
+  width: 3px;
+  height: var(--size);
+  margin-left: -1.5px;
   background: var(--ink);
-  content: '';
-  animation: caret 1s steps(1) infinite;
 }
 
-@keyframes caret {
-  50% {
-    opacity: 0;
-  }
+.guess-field:focus-within .tag-cell.is-current {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
 }
 
-.message {
-  min-height: var(--cell);
-  margin-top: calc(var(--cell) * -1);
-  color: var(--red-pen);
+.guess-field:focus-within .tag-cell.is-current .caret {
+  display: block;
 }
 
-.message-empty {
-  visibility: hidden;
+.guess-cells.is-error .tag-cell {
+  outline: 3px solid var(--red);
+  outline-offset: 3px;
 }
 
-.notes {
+.guess-cells.is-shaking {
+  animation: shake 240ms ease-in-out;
+}
+
+.check-button {
+  width: 180px;
+  height: 84px;
+}
+
+.guess-hint {
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.guess-error {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--cell);
-  margin-top: calc(var(--cell) * -1);
+  gap: 8px;
+  color: var(--red);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
-.notes-name {
-  color: var(--pencil);
+.guess-error .icon {
+  flex: none;
 }
 
-.notes-digits {
+/* Черновик */
+.draft {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.draft-digits {
+  display: grid;
+  grid-template-columns: repeat(10, 52px);
+  gap: 8px;
+}
+
+.draft-digits-hex {
+  grid-template-columns: repeat(8, 52px);
 }
 
 .note {
-  width: var(--cell);
-  height: var(--cell);
+  position: relative;
+  height: 52px;
   padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: 1.125rem / 1 var(--font-digits);
+  overflow: hidden;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-digits);
+  font-size: 22px;
+  font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
 }
 
 .note:hover {
-  background: var(--ink-soft);
+  background: var(--soft);
 }
 
 .note[aria-pressed='true'] {
-  color: var(--pencil);
-  text-decoration: line-through 2px var(--red-pen);
+  border-style: dashed;
+  border-color: var(--dis);
+  background: transparent;
+  color: var(--dis);
 }
 
-.verdict {
-  color: var(--ink);
-  font-size: 1.375rem;
-  font-weight: 500;
-  line-height: calc(var(--cell) * 1.5);
-}
-
-/* История ходов: одна цифра в одной клетке */
-.history {
-  display: grid;
-  list-style: none;
-}
-
-.attempt {
-  display: flex;
-  align-items: center;
-  height: var(--cell);
-}
-
-.attempt-number {
-  width: calc(var(--cell) * 1.5);
-  margin-left: calc(var(--cell) * -1.5);
-  padding-right: 6px;
-  color: var(--pencil);
-  font-size: 0.875rem;
-  text-align: right;
-}
-
-.attempt-digits {
-  position: relative;
-  display: flex;
-  margin-right: var(--cell);
-}
-
-.attempt-digits .cell {
-  width: var(--cell);
-  color: var(--ink);
-  font-family: var(--font-digits);
-  font-size: 1.25rem;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.attempt-score {
-  font-family: var(--font-digits);
-  font-size: 1.0625rem;
-  white-space: pre;
-}
-
-/* Победа: число обводится красной ручкой */
-.ink-circle {
+.note-strike {
   position: absolute;
-  inset: -8px -12px -8px -4px;
-  width: calc(100% + 16px);
-  height: calc(100% + 16px);
-  overflow: visible;
-  fill: none;
-  stroke: var(--red-pen);
-  stroke-linecap: round;
-  stroke-width: 2.2px;
-  vector-effect: non-scaling-stroke;
+  top: 50%;
+  left: -10%;
+  width: 120%;
+  height: 2.5px;
+  margin-top: -1px;
+  background: var(--ink);
+  /* Черта проходит через центр клетки и прочерчивается слева направо */
+  transform: rotate(-38deg);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 120ms ease-out;
 }
 
-.ink-circle path {
-  vector-effect: non-scaling-stroke;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: draw 0.7s 0.15s ease-out forwards;
+.note[aria-pressed='true'] .note-strike {
+  clip-path: inset(0);
 }
 
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
-  }
+/* Победа */
+.win {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--ink);
 }
 
-.attempt-won .attempt-score {
-  color: var(--red-pen);
+.win-tags {
+  display: flex;
+  gap: 14px;
+  padding-top: 6px;
+  transform: rotate(-3deg);
+  transform-origin: 0 0;
 }
 
-.history-empty {
-  color: var(--pencil);
+.win-tags.is-celebrating {
+  animation: swing 700ms ease-out;
 }
 
-/* Рекорды */
-.records-title {
-  font-size: 1.375rem;
-  font-weight: 600;
-  line-height: calc(var(--cell) * 2);
+.win-tags.is-celebrating ~ .win-title,
+.win-tags.is-celebrating ~ .win-place {
+  animation: rise 180ms ease-out 600ms both;
 }
 
-.records-empty {
-  max-width: 30em;
-  color: var(--pencil);
+.tag-win {
+  --w: 88px;
+  --h: 124px;
+  --r-top: 10px;
+  --r-bottom: 28px;
+  --hole: 16px;
+  --hole-top: 9px;
+  --size: 60px;
+  --pad: 14px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
-.records-table {
+.tag-win .tag-hole {
+  box-shadow: inset 0 0 0 2.5px var(--rim);
+}
+
+.tag-punch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.win-title {
+  margin-top: 4px;
+}
+
+.win-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.place-badge {
+  padding: 2px 8px;
+  border-radius: 3px 3px 9px 9px;
+  background: var(--tag);
+  color: var(--tag-ink);
+  font-family: var(--font-digits);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.win-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+/* История: своя прокрутка и закрепленная шапка */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-scroll {
+  max-height: 376px;
+  overflow-y: auto;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.history-table {
+  width: 100%;
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
 }
 
-.records-table th,
-.records-table td {
-  height: var(--cell);
-  padding: 0 var(--cell) 0 0;
+.history-table th,
+.history-table td {
+  padding: 0 6px;
   text-align: left;
-  vertical-align: middle;
 }
 
-.records-table th {
-  color: var(--pencil);
+.history-table th:first-child,
+.history-table td:first-child {
+  padding-left: 16px;
+}
+
+.history-table th:last-child,
+.history-table td:last-child {
+  padding-right: 16px;
+}
+
+.history-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 36px;
+  background: var(--panel);
+  box-shadow: inset 0 -2px 0 var(--ink);
+  color: var(--ink-2);
+  font-size: 14px;
   font-weight: 400;
 }
 
-.records-table td:nth-child(-n + 3) {
+.history-table th:nth-child(1) {
+  width: 64px;
+}
+
+.history-table th:nth-child(2) {
+  width: 162px;
+}
+
+.history-table th.col-count {
+  width: 76px;
+  text-align: right;
+}
+
+.history-table th.col-count:last-child {
+  width: 86px;
+}
+
+.history-table td {
+  height: 48px;
+  border-bottom: 1px solid var(--soft);
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.label-short {
+  display: none;
+}
+
+.history-move {
+  color: var(--ink-2);
   font-family: var(--font-digits);
+  font-size: 16px;
+  font-weight: 500;
 }
 
-.record-new td {
-  color: var(--red-pen);
+.history-marks .marks {
+  display: flex;
 }
 
-@media (max-width: 480px) {
-  :root {
-    --cell: 24px;
+.count {
+  text-align: right;
+}
+
+.count.is-zero {
+  color: var(--ink-2);
+}
+
+/* Рамка вокруг строки: красная у повтора, черная у победного хода */
+.history-table tr.is-duplicate,
+.history-table tr.is-win {
+  --row-line: var(--red);
+}
+
+.history-table tr.is-win {
+  --row-line: var(--ink);
+}
+
+.history-table tr.is-duplicate td,
+.history-table tr.is-win td {
+  box-shadow:
+    inset 0 3px 0 var(--row-line),
+    inset 0 -3px 0 var(--row-line);
+}
+
+.history-table tr.is-duplicate td:first-child,
+.history-table tr.is-win td:first-child {
+  box-shadow:
+    inset 3px 0 0 var(--row-line),
+    inset 0 3px 0 var(--row-line),
+    inset 0 -3px 0 var(--row-line);
+}
+
+.history-table tr.is-duplicate td:last-child,
+.history-table tr.is-win td:last-child {
+  box-shadow:
+    inset -3px 0 0 var(--row-line),
+    inset 0 3px 0 var(--row-line),
+    inset 0 -3px 0 var(--row-line);
+}
+
+.history-table tr.is-duplicate .history-move {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.history-table tr.is-win .history-move,
+.history-table tr.is-win .count {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Компостер: пробивки нового хода появляются по одной */
+.history-table tr.is-new .mark {
+  animation: punch 160ms ease-out both;
+  animation-delay: calc(var(--i) * 70ms);
+}
+
+.history-more {
+  display: none;
+}
+
+@keyframes punch {
+  from {
+    opacity: 0;
+    transform: scale(1.25);
   }
 
-  .page {
-    padding: calc(var(--cell) * 2) 16px calc(var(--cell) * 3) calc(var(--cell) * 2);
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
   }
 
-  .page::before {
-    left: calc(var(--cell) * 1.5 - 1px);
+  20%,
+  60% {
+    transform: translateX(-6px);
   }
 
-  .title {
-    font-size: 1.75rem;
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* Бирка качается на отверстии, как на ухе */
+@keyframes swing {
+  0% {
+    transform: rotate(-3deg);
   }
 
-  /* На узком экране поля тесные: номер хода переезжает в строку */
-  .attempt-number {
-    width: var(--cell);
+  25% {
+    transform: rotate(-9deg);
+  }
+
+  55% {
+    transform: rotate(1deg);
+  }
+
+  80% {
+    transform: rotate(-5deg);
+  }
+
+  100% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Телефон: одна колонка, в игре настройки сворачиваются в строку с замком */
+@media (max-width: 760px) {
+  .app {
+    gap: 20px;
+    padding: 12px 16px 32px;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      'settings'
+      'records'
+      'main';
+    row-gap: 28px;
+  }
+
+  .app.is-locked .layout {
+    grid-template-areas:
+      'settings'
+      'main'
+      'records';
+  }
+
+  .page-header {
+    padding-bottom: 12px;
+  }
+
+  .tag-logo {
+    --w: 30px;
+    --h: 38px;
+    --size: 11px;
+  }
+
+  .brand-name {
+    font-size: 19px;
+  }
+
+  .rules-toggle {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    padding: 0;
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+  }
+
+  .rules-toggle-text {
+    display: none;
+  }
+
+  .rules-toggle-icon {
+    display: grid;
+  }
+
+  .app.is-locked .settings {
+    display: none;
+  }
+
+  .app.is-locked .settings-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 8px 12px;
+    border: 1.5px dashed var(--ink-2);
+    border-radius: 4px;
+    color: var(--ink-2);
+  }
+
+  .settings-compact-value {
+    color: var(--ink);
+    font-family: var(--font-digits);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .settings-compact-note {
+    margin-left: auto;
+    font-size: 14px;
+  }
+
+  .screen-title {
+    font-size: 22px;
+  }
+
+  .app:not(.is-locked) .rules {
+    padding-top: 20px;
+    border-top: 2px solid var(--ink);
+  }
+
+  .example {
+    padding: 14px;
+  }
+
+  .example-label {
+    width: 100%;
+  }
+
+  .tag-example {
+    --w: 44px;
+    --h: 58px;
+    --size: 24px;
+    --pad: 8px;
+  }
+
+  .records-table th:nth-child(1) {
+    width: 56px;
+  }
+
+  .records-table th:nth-child(2) {
+    width: 60px;
+  }
+
+  .records-table th:nth-child(3) {
+    width: 64px;
+  }
+
+  .board {
+    gap: 20px;
+  }
+
+  .status-bar {
+    gap: 14px;
+  }
+
+  .readout-value {
+    font-size: 24px;
+  }
+
+  .new-game-desktop {
+    display: none;
+  }
+
+  .new-game-mobile {
+    display: block;
+    height: 52px;
+  }
+
+  .guess-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .guess-cells {
+    gap: 8px;
+  }
+
+  .tag-cell {
+    --w: 52px;
+    --h: 72px;
+    --size: 30px;
+    --pad: 12px;
+  }
+
+  .check-button {
+    width: 100%;
+    height: 52px;
+  }
+
+  .hint-keys {
+    display: none;
+  }
+
+  .draft-digits,
+  .draft-digits-hex {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .win-tags {
+    gap: 10px;
+  }
+
+  .tag-win {
+    --w: 64px;
+    --h: 96px;
+    --size: 40px;
+    --pad: 10px;
+    gap: 8px;
+  }
+
+  .tag-win .tag-punch {
+    width: 10px;
+    height: 10px;
+  }
+
+  .win-actions .button {
+    width: 100%;
+  }
+
+  .mark-legend {
     margin-left: 0;
-    margin-right: 6px;
   }
 
-  .choices {
-    gap: 4px;
+  .history-scroll {
+    max-height: none;
   }
 
-  .records-table th,
-  .records-table td {
-    padding-right: 14px;
+  .history-table th:first-child,
+  .history-table td:first-child {
+    padding-left: 10px;
+  }
+
+  .history-table th:last-child,
+  .history-table td:last-child {
+    padding-right: 10px;
+  }
+
+  .history-table th,
+  .history-table td {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .history-table th:nth-child(1) {
+    width: 40px;
+  }
+
+  .history-table th:nth-child(2) {
+    width: 116px;
+  }
+
+  .history-table th.col-count {
+    width: 26px;
+  }
+
+  .history-table th.col-count:last-child {
+    width: 36px;
+  }
+
+  .tag-inline {
+    font-size: 17px;
+    letter-spacing: 3px;
+  }
+
+  .history-move {
+    font-size: 15px;
+  }
+
+  .history-table .count {
+    font-size: 17px;
+  }
+
+  .label-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
     white-space: nowrap;
   }
 
-  .choice-mark {
-    min-width: calc(var(--cell) * 1.75);
-    padding: 0 6px;
+  .label-short {
+    display: inline;
+  }
+
+  /* Длинная история: на телефоне сначала только 8 последних ходов */
+  .history-scroll.is-collapsed tbody tr:nth-child(n + 9) {
+    display: none;
+  }
+
+  .history-more {
+    display: block;
+    width: calc(100% - 20px);
+    height: 48px;
+    margin: 10px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .history-more .num {
+    font-size: 16px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ink-circle path {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
-
-  .guess-field:focus-within .cell-current::after {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
