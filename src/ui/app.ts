@@ -1,29 +1,42 @@
-import { formatDuration, pluralize, type PluralForms } from '../core/format.js';
-import { createGame, getElapsedMs, submitGuess, type GameState } from '../core/game.js';
-import { addRecord, createRecord, type GameRecord } from '../core/records.js';
+import { formatDuration, pluralize } from '../core/format.js';
+import {
+  createGame,
+  getElapsedMs,
+  submitGuess,
+  type GameState,
+  type GuessError,
+} from '../core/game.js';
+import { addRecord, createRecord, getRecordsFor, type GameRecord } from '../core/records.js';
 import { generateSecret } from '../core/secret.js';
 import type { GameSettings } from '../core/settings.js';
-import { renderBoard } from './board-view.js';
+import { renderBoard, type BoardEffect } from './board-view.js';
 import { el } from './dom.js';
+import { renderHeader } from './header-view.js';
 import { renderRecords } from './records-view.js';
+import { renderRules } from './rules-view.js';
 import { renderSettings } from './settings-view.js';
 import { loadRecords, saveRecords } from './storage.js';
+import { DIGITS } from './tag.js';
+import { applyTheme, loadTheme, saveTheme, type Theme } from './theme.js';
 
 interface AppState {
   readonly settings: GameSettings;
   readonly game: GameState | null;
   readonly draft: string;
   readonly message: string | null;
+  readonly duplicateMove: number | null;
   readonly crossedOut: ReadonlySet<string>;
   readonly records: readonly GameRecord[];
   readonly newRecord: GameRecord | null;
+  readonly rulesOpen: boolean;
+  readonly historyExpanded: boolean;
+  readonly theme: Theme;
 }
 
-const DIGITS: PluralForms = ['цифра', 'цифры', 'цифр'];
 const DEFAULT_SETTINGS: GameSettings = { length: 4, base: 10 };
 
-const toggle = (set: ReadonlySet<string>, item: string): ReadonlySet<string> =>
-  set.has(item) ? new Set([...set].filter((value) => value !== item)) : new Set([...set, item]);
+const withItem = (set: ReadonlySet<string>, item: string, present: boolean): ReadonlySet<string> =>
+  present ? new Set([...set, item]) : new Set([...set].filter((value) => value !== item));
 
 export const mountApp = (root: HTMLElement): void => {
   // Состояние интерфейса заменяется целиком, как и состояние игры в ядре
@@ -32,13 +45,18 @@ export const mountApp = (root: HTMLElement): void => {
     game: null,
     draft: '',
     message: null,
+    duplicateMove: null,
     crossedOut: new Set(),
     records: loadRecords(),
     newRecord: null,
+    rulesOpen: false,
+    historyExpanded: false,
+    theme: loadTheme(),
   };
   let tick: number | undefined;
   // Куда поставить фокус после перерисовки; без него фокус остается на том же элементе
   let focusKey: string | null = null;
+  let effect: BoardEffect = null;
 
   const stopTimer = (): void => {
     window.clearInterval(tick);
@@ -50,18 +68,21 @@ export const mountApp = (root: HTMLElement): void => {
     render();
   };
 
+  const freshRound: Partial<AppState> = {
+    draft: '',
+    message: null,
+    duplicateMove: null,
+    crossedOut: new Set(),
+    rulesOpen: false,
+    historyExpanded: false,
+  };
+
   const startGame = (): void => {
-    const now = Date.now();
+    const { settings } = state;
     focusKey = 'guess';
     update({
-      game: createGame(
-        state.settings,
-        generateSecret(state.settings.length, state.settings.base),
-        now,
-      ),
-      draft: '',
-      message: null,
-      crossedOut: new Set(),
+      ...freshRound,
+      game: createGame(settings, generateSecret(settings.length, settings.base), Date.now()),
       newRecord: null,
     });
   };
@@ -69,34 +90,35 @@ export const mountApp = (root: HTMLElement): void => {
   const newGame = (): void => {
     stopTimer();
     focusKey = 'start';
-    update({ game: null, draft: '', message: null, crossedOut: new Set() });
+    update({ ...freshRound, game: null });
   };
 
-  const explainRejection = (
-    game: GameState,
-    error: 'invalid' | 'duplicate' | 'finished',
-  ): string => {
+  const rejectGuess = (game: GameState, error: GuessError): void => {
     const { length } = game.settings;
+    effect = 'error';
+
     if (error === 'duplicate') {
       const move = game.history.findIndex((attempt) => attempt.guess === state.draft) + 1;
-      return `Это число уже проверяли на ${String(move)}-м ходу.`;
+      update({
+        message: `Это число уже проверяли на ${String(move)}-м ходу.`,
+        duplicateMove: move,
+      });
+      return;
     }
-    if (error === 'invalid') {
-      return `Нужно ${String(length)} ${pluralize(length, DIGITS)} без повторов.`;
-    }
-    return 'Игра уже закончена.';
+    update({
+      message: `Нужно ${String(length)} ${pluralize(length, DIGITS)} без повторов.`,
+      duplicateMove: null,
+    });
   };
 
   const finish = (game: GameState): void => {
     stopTimer();
     const record = createRecord(game);
-    if (!record) {
-      return;
-    }
-    const records = addRecord(state.records, record);
+    const records = record ? addRecord(state.records, record) : state.records;
     saveRecords(records);
     focusKey = 'new-game';
-    update({ game, draft: '', message: null, records, newRecord: record });
+    effect = 'win';
+    update({ ...freshRound, game, records, newRecord: record });
   };
 
   const submit = (): void => {
@@ -107,14 +129,30 @@ export const mountApp = (root: HTMLElement): void => {
     focusKey = 'guess';
 
     if (error) {
-      update({ message: explainRejection(state.game, error) });
+      rejectGuess(state.game, error);
       return;
     }
     if (game.status === 'won') {
       finish(game);
       return;
     }
-    update({ game, draft: '', message: null });
+    effect = 'move';
+    update({ game, draft: '', message: null, duplicateMove: null });
+  };
+
+  const changeDraft = (draft: string): void => {
+    // Ошибка снимается, как только игрок начал править вариант
+    if (state.message !== null) {
+      update({ draft, message: null, duplicateMove: null });
+      return;
+    }
+    state = { ...state, draft };
+  };
+
+  const toggleTheme = (): void => {
+    const theme: Theme = state.theme === 'dark' ? 'light' : 'dark';
+    saveTheme(theme);
+    update({ theme });
   };
 
   const syncTimer = (timer: HTMLElement): void => {
@@ -132,10 +170,16 @@ export const mountApp = (root: HTMLElement): void => {
   const restoreFocus = (previousKey: string | undefined): void => {
     const key = focusKey ?? previousKey;
     focusKey = null;
-    if (key) {
-      root.querySelector<HTMLElement>(`[data-key="${key}"]`)?.focus();
+    const target = key ? root.querySelector<HTMLElement>(`[data-key="${key}"]`) : null;
+    target?.focus();
+    // Курсор в конец: цифры дописываются справа
+    if (target instanceof HTMLInputElement) {
+      target.setSelectionRange(target.value.length, target.value.length);
     }
   };
+
+  const recordPlace = (): number =>
+    state.newRecord ? getRecordsFor(state.records, state.settings).indexOf(state.newRecord) + 1 : 0;
 
   const render = (): void => {
     const { game } = state;
@@ -143,50 +187,71 @@ export const mountApp = (root: HTMLElement): void => {
       document.activeElement instanceof HTMLElement
         ? document.activeElement.dataset.key
         : undefined;
+    applyTheme(state.theme);
+
     const board = game
       ? renderBoard({
           game,
           draft: state.draft,
           message: state.message,
+          duplicateMove: state.duplicateMove,
           crossedOut: state.crossedOut,
           now: Date.now(),
-          onDraft: (draft) => {
-            state = { ...state, draft, message: null };
-          },
+          effect,
+          place: recordPlace(),
+          historyExpanded: state.historyExpanded,
+          onDraft: changeDraft,
           onSubmit: submit,
-          onToggleNote: (digit) => {
-            update({ crossedOut: toggle(state.crossedOut, digit) });
+          onToggleNote: (digit, crossed) => {
+            state = { ...state, crossedOut: withItem(state.crossedOut, digit, crossed) };
           },
           onNewGame: newGame,
+          onExpandHistory: () => {
+            update({ historyExpanded: true });
+          },
         })
       : null;
 
+    const showRules = !game || state.rulesOpen;
+
     root.replaceChildren(
-      el('main', { className: 'page' }, [
-        el('header', { className: 'page-head' }, [
-          el('h1', { className: 'title', text: 'Быки и коровы' }),
-          el('p', {
-            className: 'rules',
-            text: 'Компьютер загадывает число из разных цифр. После каждой попытки вы узнаете, сколько цифр стоят на своих местах (быки) и сколько есть в числе, но стоят не там (коровы).',
-          }),
-        ]),
-        renderSettings({
-          settings: state.settings,
-          locked: game !== null,
-          onChange: (settings) => {
-            update({ settings, newRecord: null });
+      el('div', { className: game ? 'app is-locked' : 'app' }, [
+        renderHeader({
+          theme: state.theme,
+          showRulesToggle: game !== null,
+          rulesOpen: state.rulesOpen,
+          onToggleTheme: toggleTheme,
+          onToggleRules: () => {
+            update({ rulesOpen: !state.rulesOpen });
           },
-          onStart: startGame,
         }),
-        board?.element ?? null,
-        renderRecords({
-          records: state.records,
-          settings: state.settings,
-          highlighted: state.newRecord,
-        }),
+        el('main', { className: 'layout' }, [
+          el('div', { className: 'area-settings' }, [
+            renderSettings({
+              settings: state.settings,
+              locked: game !== null,
+              onChange: (settings) => {
+                update({ settings, newRecord: null });
+              },
+              onStart: startGame,
+            }),
+          ]),
+          el('div', { className: 'area-main' }, [
+            showRules ? renderRules() : null,
+            board?.element ?? null,
+          ]),
+          el('div', { className: 'area-records' }, [
+            renderRecords({
+              records: state.records,
+              settings: state.settings,
+              highlighted: state.newRecord,
+            }),
+          ]),
+        ]),
       ]),
     );
 
+    effect = null;
     if (board) {
       syncTimer(board.timer);
     }
