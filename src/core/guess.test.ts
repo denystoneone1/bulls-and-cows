@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest';
+import { evaluateGuess, isValidGuess } from './guess.js';
+
+describe('isValidGuess', () => {
+  it.each([
+    { guess: '0123', length: 4, base: 10 },
+    { guess: '01', length: 2, base: 2 },
+    { guess: '765', length: 3, base: 8 },
+    { guess: '7a3f', length: 4, base: 16 },
+    { guess: '7A3F', length: 4, base: 16 },
+    { guess: '987654', length: 6, base: 10 },
+  ] as const)('accepts $guess for length $length and base $base', ({ guess, length, base }) => {
+    expect(isValidGuess(guess, length, base)).toBe(true);
+  });
+
+  it.each([
+    { guess: '012', length: 4 },
+    { guess: '01234', length: 4 },
+    { guess: '', length: 2 },
+  ] as const)('rejects $guess when length is not $length', ({ guess, length }) => {
+    expect(isValidGuess(guess, length, 10)).toBe(false);
+  });
+
+  it.each([
+    { guess: '0128', base: 8 },
+    { guess: '02', base: 2 },
+    { guess: '12g4', base: 16 },
+    { guess: '1a23', base: 10 },
+    { guess: '0 12', base: 10 },
+  ] as const)('rejects $guess with digits outside base $base', ({ guess, base }) => {
+    expect(isValidGuess(guess, guess.length, base)).toBe(false);
+  });
+
+  it.each([
+    { guess: '1123', base: 10 },
+    { guess: '00', base: 2 },
+    { guess: 'aA12', base: 16 },
+  ] as const)('rejects $guess with repeated digits', ({ guess, base }) => {
+    expect(isValidGuess(guess, guess.length, base)).toBe(false);
+  });
+});
+
+describe('evaluateGuess', () => {
+  it.each([
+    { secret: '1234', guess: '1234', bulls: 4, cows: 0 },
+    { secret: '1234', guess: '5678', bulls: 0, cows: 0 },
+    { secret: '1234', guess: '4321', bulls: 0, cows: 4 },
+    { secret: '1234', guess: '1243', bulls: 2, cows: 2 },
+    { secret: '1234', guess: '1325', bulls: 1, cows: 2 },
+    { secret: '0123', guess: '0321', bulls: 2, cows: 2 },
+    { secret: '01', guess: '10', bulls: 0, cows: 2 },
+    { secret: '765', guess: '576', bulls: 0, cows: 3 },
+  ])('returns $bulls bulls and $cows cows for $guess against $secret', (example) => {
+    expect(evaluateGuess(example.secret, example.guess)).toEqual({
+      bulls: example.bulls,
+      cows: example.cows,
+    });
+  });
+
+  it('compares hex digits case-insensitively', () => {
+    expect(evaluateGuess('a1b2', 'A1B2')).toEqual({ bulls: 4, cows: 0 });
+    expect(evaluateGuess('ABCD', 'dcba')).toEqual({ bulls: 0, cows: 4 });
+  });
+
+  it('returns the same result for the same input', () => {
+    expect(evaluateGuess('5079', '9075')).toEqual(evaluateGuess('5079', '9075'));
+  });
+});
