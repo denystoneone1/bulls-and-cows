@@ -172,8 +172,8 @@ export const mountApp = (root: HTMLElement): void => {
     focusKey = null;
     const target = key ? root.querySelector<HTMLElement>(`[data-key="${key}"]`) : null;
     target?.focus();
-    // Курсор в конец: цифры дописываются справа
-    if (target instanceof HTMLInputElement) {
+    // Курсор в конец: цифры дописываются справа. Радиокнопки выделение не поддерживают
+    if (target instanceof HTMLInputElement && target.type === 'text') {
       target.setSelectionRange(target.value.length, target.value.length);
     }
   };
