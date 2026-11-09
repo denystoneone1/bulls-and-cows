@@ -8,6 +8,8 @@ import {
   type GameSettings,
 } from '../core/settings.js';
 import { el } from './dom.js';
+import { infoIcon, lockIcon } from './icons.js';
+import { digitRange, settingsLabel } from './tag.js';
 
 interface SettingsViewProps {
   readonly settings: GameSettings;
@@ -16,22 +18,23 @@ interface SettingsViewProps {
   readonly onStart: () => void;
 }
 
-const numberFormat = new Intl.NumberFormat('ru-RU');
-
-interface ChoiceOptions {
+interface SegmentOptions {
   readonly name: string;
   readonly value: number;
-  readonly label: readonly (Node | string)[];
+  readonly face: readonly (Node | string)[];
   readonly accessibleName: string;
   readonly checked: boolean;
   readonly disabled: boolean;
   readonly onSelect: () => void;
 }
 
-const choice = (options: ChoiceOptions): HTMLLabelElement =>
-  el('label', { className: 'choice' }, [
+const numberFormat = new Intl.NumberFormat('ru-RU');
+
+// Настоящая радиокнопка под видом сегмента: работают стрелки и скринридеры
+const segment = (options: SegmentOptions): HTMLLabelElement =>
+  el('label', { className: 'segment' }, [
     el('input', {
-      className: 'choice-input',
+      className: 'segment-input',
       attrs: {
         type: 'radio',
         name: options.name,
@@ -43,7 +46,14 @@ const choice = (options: ChoiceOptions): HTMLLabelElement =>
       },
       on: { change: options.onSelect },
     }),
-    el('span', { className: 'choice-mark' }, options.label),
+    el('span', { className: 'segment-face' }, options.face),
+  ]);
+
+const renderCompact = (settings: GameSettings): HTMLElement =>
+  el('p', { className: 'settings-compact' }, [
+    lockIcon(18),
+    el('span', { className: 'settings-compact-value', text: settingsLabel(settings) }),
+    el('span', { className: 'settings-compact-note', text: 'заблокировано' }),
   ]);
 
 export const renderSettings = ({
@@ -59,23 +69,26 @@ export const renderSettings = ({
     onChange({ ...settings, length });
   };
 
-  const baseChoices = BASE_OPTIONS.map(({ name, base }) =>
-    choice({
+  const baseSegments = BASE_OPTIONS.map(({ name, base }) =>
+    segment({
       name: 'base',
       value: base,
-      label: [name, el('sub', { text: String(base) })],
-      accessibleName: `${name}, основание ${String(base)}`,
+      face: [
+        el('span', { className: 'segment-label', text: name }),
+        el('span', { className: 'segment-range', text: digitRange(base) }),
+      ],
+      accessibleName: `${name}, цифры ${digitRange(base)}`,
       checked: base === settings.base,
       disabled: false,
       onSelect: selectBase(base),
     }),
   );
 
-  const lengthChoices = LENGTH_OPTIONS.map((length) =>
-    choice({
+  const lengthSegments = LENGTH_OPTIONS.map((length) =>
+    segment({
       name: 'length',
       value: length,
-      label: [String(length)],
+      face: [el('span', { className: 'segment-label', text: String(length) })],
       accessibleName: String(length),
       checked: length === settings.length,
       disabled: !isLengthAvailable(length, settings.base),
@@ -83,13 +96,11 @@ export const renderSettings = ({
     }),
   );
 
-  const variants = countPossibleSecrets(settings.length, settings.base);
-
-  return el(
+  const form = el(
     'form',
     {
-      className: 'settings',
-      attrs: { 'aria-label': 'Настройки игры' },
+      className: locked ? 'settings is-locked' : 'settings',
+      attrs: { 'aria-labelledby': 'settings-title' },
       on: {
         submit: (event) => {
           event.preventDefault();
@@ -98,25 +109,46 @@ export const renderSettings = ({
       },
     },
     [
+      el('div', { className: 'section-head' }, [
+        el('h2', {
+          className: 'section-title',
+          text: 'Настройки',
+          attrs: { id: 'settings-title' },
+        }),
+        locked
+          ? el('p', { className: 'lock-note' }, [lockIcon(), 'заблокированы до конца партии'])
+          : null,
+      ]),
       el('fieldset', { className: 'setting', attrs: { disabled: locked } }, [
         el('legend', { className: 'setting-name', text: 'Система счисления' }),
-        el('div', { className: 'choices' }, baseChoices),
+        el('div', { className: 'segments segments-base' }, baseSegments),
       ]),
       el('fieldset', { className: 'setting', attrs: { disabled: locked } }, [
-        el('legend', { className: 'setting-name', text: 'Цифр в числе' }),
-        el('div', { className: 'choices' }, lengthChoices),
+        el('legend', { className: 'setting-name', text: 'Длина числа' }),
+        el('div', { className: 'segments segments-length' }, lengthSegments),
+        settings.base === 2
+          ? el('p', { className: 'setting-note' }, [infoIcon(), 'Для bin доступна только длина 2'])
+          : null,
       ]),
       el('p', { className: 'variants' }, [
-        'Возможных чисел: ',
-        el('span', { className: 'variants-count', text: numberFormat.format(variants) }),
+        el('span', { className: 'variants-label', text: 'Возможных чисел' }),
+        el('span', {
+          className: 'variants-count',
+          text: numberFormat.format(countPossibleSecrets(settings.length, settings.base)),
+        }),
       ]),
       locked
         ? null
         : el('button', {
-            className: 'button button-primary',
+            className: 'button button-primary button-wide',
             text: 'Загадать число',
             attrs: { type: 'submit', 'data-key': 'start' },
           }),
     ],
   );
+
+  return el('section', { className: 'settings-section', attrs: { 'aria-label': 'Настройки' } }, [
+    locked ? renderCompact(settings) : null,
+    form,
+  ]);
 };
